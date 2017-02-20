@@ -1,0 +1,3 @@
+requests>=2.13.0
+CacheControl>=0.12.0
+CacheControl[filecache]
