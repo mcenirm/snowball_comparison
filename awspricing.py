@@ -66,7 +66,8 @@ class OfferFile():
         self.code = code
         self.urlgetter = _default_urlgetter(urlgetter=urlgetter)
         self._offer_file = None
-        self._product_families = None
+        self._products_by_family = None
+        self._products_by_region = None
 
     @property
     def offer_file(self):
@@ -82,30 +83,40 @@ class OfferFile():
         return self.offer_file['products']
 
     @property
-    def product_families(self):
-        if self._product_families is None:
+    def products_by_family(self):
+        if self._products_by_family is None:
             from collections import defaultdict
 
-            self._product_families = defaultdict(dict)
+            self._products_by_family = defaultdict(dict)
             products = self.offer_file['products']
-            for key, product in products.items():
-                family = product['productFamily']
-                self._product_families[family][key] = product
-        return self._product_families
+            for sku, product in products.items():
+                family = product.get('productFamily', None)
+                if family is not None:
+                    self._products_by_family[family][sku] = product
+        return self._products_by_family
+
+    @property
+    def products_by_region(self):
+        if self._products_by_region is None:
+            from collections import defaultdict
+
+            self._products_by_region = defaultdict(dict)
+            products = self.offer_file['products']
+            for sku, product in products.items():
+                attributes = product.get('attributes', None)
+                if attributes is not None:
+                    for location_key in ['location', 'fromLocation', 'toLocation']:
+                        location_type_key = location_key + 'Type'
+                        location_type = attributes.get(location_type_key, None)
+                        if location_type == 'AWS Region':
+                            region = attributes.get(location_key, None)
+                            if region is not None:
+                                self._products_by_region[region][sku] = product
+        return self._products_by_region
 
     @property
     def terms(self):
         return self.offer_file['terms']
-
-    def products_in_region(self, region_id):
-        matching_products = {}
-        for sku, product in self.products.items():
-            attributes = product['attributes']
-            if is_transfer_in_region(attributes, region_id):
-                matching_products[sku] = product
-            elif is_nontransfer_in_region(attributes, region_id):
-                matching_products[sku] = product
-        return matching_products
 
 
 def is_transfer(product_attributes):
